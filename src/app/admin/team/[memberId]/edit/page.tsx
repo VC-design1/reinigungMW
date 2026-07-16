@@ -20,7 +20,7 @@ export default async function EditTeamMemberPage({
 }) {
   const { memberId } = await params;
   const { error } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const { data: member } = await supabase
@@ -32,14 +32,19 @@ export default async function EditTeamMemberPage({
 
   // Admin-Profile gehören ihren Inhabern — fremde Admin-Accounts darf nur der
   // Superadmin bearbeiten; das Superadmin-Profil nur der Inhaber selbst.
+  // Vermieter bearbeiten ausschließlich die eigenen Reinigungskräfte.
   const allowed =
     member.id === profile.id ||
-    (!member.is_superadmin && (member.role !== "admin" || profile.is_superadmin));
+    (profile.role === "landlord"
+      ? member.role === "cleaner" && member.managed_by === profile.id
+      : !member.is_superadmin && (member.role !== "admin" || profile.is_superadmin));
   if (!allowed) {
     redirect("/admin/team");
   }
 
   const isSelf = member.id === profile.id;
+  // Rollenwechsel gibt es nur für Admins, und nur bei fremden Nicht-Admin-Profilen.
+  const roleLocked = isSelf || member.role === "admin" || profile.role === "landlord";
 
   return (
     <div className="flex max-w-lg flex-col gap-4">
@@ -67,11 +72,10 @@ export default async function EditTeamMemberPage({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="role">Rolle</Label>
-              {isSelf || member.role === "admin" ? (
+              {roleLocked ? (
                 <>
-                  {/* Eigene Rolle und Admin-Rollen sind fix — verhindert
-                      versehentliche Selbst-Aussperrung bzw. Degradierung von
-                      Admin-Accounts über den Bearbeiten-Weg. */}
+                  {/* Eigene Rolle und Admin-Rollen sind fix; Vermieter können
+                      die Rolle ihrer Reinigungskräfte nicht ändern. */}
                   <Input value={ROLE_LABELS[member.role as UserRole]} disabled />
                   <input type="hidden" name="role" value={member.role} />
                 </>

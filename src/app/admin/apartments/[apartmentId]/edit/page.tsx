@@ -13,7 +13,7 @@ export default async function EditApartmentPage({
 }) {
   const { apartmentId } = await params;
   const { error } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const [{ data: apartment }, { data: landlords }, { data: cleaners }] = await Promise.all([
@@ -35,6 +35,12 @@ export default async function EditApartmentPage({
   ]);
   if (!apartment) notFound();
 
+  // Vermieter dürfen nur eigene Wohnungen bearbeiten (RLS würde das Update
+  // ohnehin ablehnen — hier zusätzlich sauber wegleiten).
+  if (profile.role === "landlord" && apartment.owner_id !== profile.id) {
+    notFound();
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold tracking-tight text-slate-900">{apartment.name} bearbeiten</h1>
@@ -44,6 +50,7 @@ export default async function EditApartmentPage({
         error={error}
         landlords={landlords ?? []}
         cleaners={cleaners ?? []}
+        showOwnerSelect={profile.role === "admin"}
       />
     </div>
   );

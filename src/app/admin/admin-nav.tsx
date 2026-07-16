@@ -11,7 +11,7 @@ const NAV: { href: string; label: string; roles: UserRole[] }[] = [
   { href: "/admin/apartments", label: "Wohnungen", roles: ["admin", "landlord"] },
   { href: "/admin/templates", label: "Checklisten", roles: ["admin"] },
   { href: "/admin/jobs", label: "Aufträge", roles: ["admin", "landlord"] },
-  { href: "/admin/team", label: "Team", roles: ["admin"] },
+  { href: "/admin/team", label: "Team", roles: ["admin", "landlord"] },
   { href: "/admin/stats", label: "Statistik", roles: ["admin"] },
   { href: "/admin/insights", label: "Auswertung", roles: ["admin"] },
 ];

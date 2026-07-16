@@ -66,7 +66,8 @@ export default async function ApartmentDetailPage({
 
   if (!apartment) notFound();
 
-  const isAdmin = profile.role === "admin";
+  // Admins verwalten alle Wohnungen, Vermieter ihre eigenen.
+  const canEdit = profile.role === "admin" || apartment.owner_id === profile.id;
   const assignedIds = new Set((assigned ?? []).map((a) => a.template_id));
 
   function statusVariant(status: CleaningJobStatus) {
@@ -102,7 +103,7 @@ export default async function ApartmentDetailPage({
               PDF-Bericht
             </Button>
           </a>
-          {isAdmin && (
+          {canEdit && (
             <>
               <Link href={`/admin/apartments/${apartment.id}/edit`}>
                 <Button size="sm" variant="outline">
@@ -138,7 +139,7 @@ export default async function ApartmentDetailPage({
                     {item.name}
                     {item.category && <span className="text-slate-400"> · {item.category}</span>}
                   </span>
-                  {isAdmin && (
+                  {canEdit && (
                     <form action={removeInventoryItem.bind(null, apartment.id, item.id)}>
                       <Button size="sm" variant="ghost" type="submit">
                         Entfernen
@@ -151,7 +152,7 @@ export default async function ApartmentDetailPage({
                 <p className="text-sm text-slate-400">Noch keine Gegenstände erfasst.</p>
               )}
             </ul>
-            {isAdmin && (
+            {canEdit && (
               <form action={addInventoryItem.bind(null, apartment.id)} className="flex gap-2">
                 <Input name="name" placeholder="Gegenstand" required className="flex-1" />
                 <Input name="category" placeholder="Kategorie" className="w-32" />
@@ -170,7 +171,7 @@ export default async function ApartmentDetailPage({
           <CardContent className="flex flex-col gap-2">
             {(templates ?? []).map((tpl) => {
               const isAssigned = assignedIds.has(tpl.id);
-              if (!isAdmin) {
+              if (!canEdit) {
                 return isAssigned ? (
                   <span key={tpl.id} className="text-sm">
                     {tpl.name}
@@ -193,7 +194,7 @@ export default async function ApartmentDetailPage({
             {(templates ?? []).length === 0 && (
               <p className="text-sm text-slate-400">
                 Noch keine Vorlagen vorhanden.{" "}
-                {isAdmin && (
+                {canEdit && (
                   <Link href="/admin/templates/new" className="underline">
                     Vorlage anlegen
                   </Link>
@@ -269,7 +270,7 @@ export default async function ApartmentDetailPage({
               </Button>
             </form>
 
-            {isAdmin && (
+            {canEdit && (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
               <p className="text-xs font-medium text-slate-500">Automatischer Import (iCal)</p>
               {apartment.ical_url ? (

@@ -22,16 +22,21 @@ function normalizeApartmentInput(data: ReturnType<typeof apartmentSchema.parse>)
 }
 
 export async function createApartment(formData: FormData) {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const parsed = apartmentSchema.safeParse(formToObject(formData));
   if (!parsed.success) {
     redirect(`/admin/apartments/new?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
   }
 
+  const input = normalizeApartmentInput(parsed.data);
+  // Vermieter legen Wohnungen immer für sich selbst an — die RLS-Insert-Policy
+  // (apartments_insert_landlord) verlangt owner_id = eigener Account.
+  if (profile.role === "landlord") input.owner_id = profile.id;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("apartments")
-    .insert({ ...normalizeApartmentInput(parsed.data), org_id: profile.org_id })
+    .insert({ ...input, org_id: profile.org_id })
     .select()
     .single();
 
@@ -44,7 +49,7 @@ export async function createApartment(formData: FormData) {
 }
 
 export async function updateApartment(apartmentId: string, formData: FormData) {
-  await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const parsed = apartmentSchema.safeParse(formToObject(formData));
   if (!parsed.success) {
     redirect(
@@ -52,11 +57,13 @@ export async function updateApartment(apartmentId: string, formData: FormData) {
     );
   }
 
+  const input = normalizeApartmentInput(parsed.data);
+  // Vermieter können die Zuordnung nicht an andere abgeben (RLS würde ein
+  // Update fremder Wohnungen ohnehin ablehnen).
+  if (profile.role === "landlord") input.owner_id = profile.id;
+
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("apartments")
-    .update(normalizeApartmentInput(parsed.data))
-    .eq("id", apartmentId);
+  const { error } = await supabase.from("apartments").update(input).eq("id", apartmentId);
   if (error) {
     redirect(`/admin/apartments/${apartmentId}/edit?error=${encodeURIComponent(error.message)}`);
   }
@@ -67,7 +74,7 @@ export async function updateApartment(apartmentId: string, formData: FormData) {
 }
 
 export async function setApartmentStatus(apartmentId: string, status: "active" | "archived") {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase.from("apartments").update({ status }).eq("id", apartmentId);
   revalidatePath("/admin/apartments");
@@ -75,7 +82,7 @@ export async function setApartmentStatus(apartmentId: string, status: "active" |
 }
 
 export async function addInventoryItem(apartmentId: string, formData: FormData) {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const parsed = inventoryItemSchema.safeParse(formToObject(formData));
   if (!parsed.success) return;
 
@@ -85,7 +92,7 @@ export async function addInventoryItem(apartmentId: string, formData: FormData) 
 }
 
 export async function removeInventoryItem(apartmentId: string, itemId: string) {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase.from("apartment_inventory_items").delete().eq("id", itemId);
   revalidatePath(`/admin/apartments/${apartmentId}`);
@@ -161,7 +168,7 @@ export async function deleteBooking(apartmentId: string, bookingId: string) {
 }
 
 export async function syncApartmentIcal(apartmentId: string) {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   const { data: apartment } = await supabase
     .from("apartments")
@@ -190,7 +197,7 @@ export async function toggleApartmentTemplate(
   templateId: string,
   assign: boolean
 ) {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   if (assign) {
     await supabase

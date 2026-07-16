@@ -9,7 +9,7 @@ export default async function NewApartmentPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const [{ data: landlords }, { data: cleaners }] = await Promise.all([
@@ -37,6 +37,7 @@ export default async function NewApartmentPage({
         error={error}
         landlords={landlords ?? []}
         cleaners={cleaners ?? []}
+        showOwnerSelect={profile.role === "admin"}
       />
     </div>
   );

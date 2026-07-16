@@ -18,15 +18,21 @@ export default async function TeamPage({
   searchParams: Promise<{ error?: string; created?: string; updated?: string; deleted?: string }>;
 }) {
   const { error, created, updated, deleted } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
+  const isLandlord = profile.role === "landlord";
 
-  const { data: members } = await supabase
+  // Vermieter sehen und verwalten hier nur die eigenen Reinigungskräfte.
+  let membersQuery = supabase
     .from("profiles")
     .select("*")
     .eq("org_id", profile.org_id)
     .order("role")
     .order("full_name");
+  if (isLandlord) {
+    membersQuery = membersQuery.eq("role", "cleaner").eq("managed_by", profile.id);
+  }
+  const { data: members } = await membersQuery;
 
   const { data: ratings } = await supabase
     .from("cleaning_ratings")
@@ -66,7 +72,8 @@ export default async function TeamPage({
           {(members ?? []).map((member) => {
             // Admin-Profile gehören ihren Inhabern: fremde Admin-Accounts kann
             // nur der Superadmin verwalten; das Superadmin-Profil niemand außer
-            // dem Inhaber selbst.
+            // dem Inhaber selbst. Vermieter sehen hier ohnehin nur die eigenen
+            // Reinigungskräfte (Query oben).
             const manageable =
               member.id === profile.id ||
               (!member.is_superadmin && (member.role !== "admin" || profile.is_superadmin));
@@ -125,23 +132,29 @@ export default async function TeamPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Neues Teammitglied anlegen</CardTitle>
+          <CardTitle>
+            {isLandlord ? "Neue Reinigungskraft anlegen" : "Neues Teammitglied anlegen"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form action={createTeamMember} className="flex max-w-md flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="role">Rolle</Label>
-              <Select id="role" name="role" defaultValue="cleaner" required>
-                <option value="cleaner">Reinigungskraft</option>
-                <option value="landlord">Vermieter</option>
-                <option value="admin">Admin</option>
-              </Select>
-              <p className="text-xs text-slate-500">
-                Admins verwalten alles. Vermieter sehen nur ihre zugeordneten Wohnungen und können
-                dort Buchungen und Reinigungsaufträge anlegen. Reinigungskräfte sehen nur die ihnen
-                zugewiesenen Aufträge.
-              </p>
-            </div>
+            {isLandlord ? (
+              <input type="hidden" name="role" value="cleaner" />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="role">Rolle</Label>
+                <Select id="role" name="role" defaultValue="cleaner" required>
+                  <option value="cleaner">Reinigungskraft</option>
+                  <option value="landlord">Vermieter</option>
+                  <option value="admin">Admin</option>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Admins verwalten alles. Vermieter verwalten ihre eigenen Wohnungen und
+                  Reinigungskräfte und können Buchungen und Reinigungsaufträge anlegen.
+                  Reinigungskräfte sehen nur die ihnen zugewiesenen Aufträge.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="full_name">Name</Label>
               <Input id="full_name" name="full_name" required />

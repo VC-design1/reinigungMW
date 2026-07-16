@@ -54,6 +54,10 @@ ausgeführt werden:
   Migration gesetzt) + Account-Löschung: Historien-FKs auf `on delete set null`,
   damit Accounts gelöscht werden können, ohne Aufträge/Fotos/Meldungen zu
   verlieren.
+- `0005_landlord_manage.sql` — Vermieter-Selbstverwaltung: Vermieter legen
+  eigene Wohnungen an und verwalten sie (Inventar, Checklisten-Zuordnung,
+  Archivieren, iCal); `profiles.managed_by` verknüpft Reinigungskräfte mit dem
+  Vermieter, der sie angelegt hat und verwaltet.
 
 Zwei Wege, sie auszuführen:
 
@@ -182,7 +186,7 @@ läuft aber weiterhin über die IndexedDB-Queue, nicht über den Service Worker.
 | Rolle | Sichtbarkeit | Rechte |
 | --- | --- | --- |
 | **Admin** | alles in der Organisation | Wohnungen/Vorlagen/Team/Aufträge/Buchungen verwalten, Profile bearbeiten |
-| **Vermieter** (`landlord`) | nur Wohnungen mit eigener Zuordnung (`owner_id`) | Buchungen eintragen/löschen, Reinigungsaufträge anlegen, geplante Aufträge löschen, PDF-Bericht; alles andere read-only |
+| **Vermieter** (`landlord`) | nur Wohnungen mit eigener Zuordnung (`owner_id`) und eigene Reinigungskräfte (`managed_by`) | eigene Wohnungen anlegen/verwalten (Inventar, Checklisten-Zuordnung, Archivieren, iCal), eigene Reinigungskräfte anlegen/bearbeiten/deaktivieren/löschen, Buchungen eintragen/löschen, Reinigungsaufträge anlegen, PDF-Bericht |
 | **Reinigungskraft** (`cleaner`) | nur Wohnungen mit ihr zugewiesenen Aufträgen | Checklisten/Fotos/Meldungen/Status im eigenen Auftrag |
 
 Schutzregeln für Profile: Ein Admin kann Vermieter- und Reinigungskraft-Profile

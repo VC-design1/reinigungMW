@@ -58,6 +58,12 @@ export default async function AdminJobHistoryPage({
     byRoom.get(r.room_name)!.push(r);
   }
 
+  const photosByRoom = new Map<string, typeof photoUrls>();
+  for (const p of photoUrls) {
+    if (!photosByRoom.has(p.room_name)) photosByRoom.set(p.room_name, []);
+    photosByRoom.get(p.room_name)!.push(p);
+  }
+
   const { data: rating } = await supabase
     .from("cleaning_ratings")
     .select("*")
@@ -173,25 +179,30 @@ export default async function AdminJobHistoryPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Fotos</CardTitle>
+          <CardTitle>Fotos nach Räumen</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           {photoUrls.length === 0 ? (
             <p className="text-sm text-slate-400">Keine Fotos vorhanden.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {photoUrls.map((p) => (
-                <div key={p.id} className="relative aspect-square overflow-hidden rounded-md bg-slate-100">
-                  {p.url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.url} alt={p.phase} className="h-full w-full object-cover" />
-                  )}
-                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[10px] text-white">
-                    {p.room_name} · {p.phase === "before" ? "Vorher" : p.phase === "after" ? "Nachher" : "Problem"}
-                  </span>
+            [...photosByRoom.entries()].map(([room, roomPhotos]) => (
+              <div key={room}>
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">{room}</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {roomPhotos.map((p) => (
+                    <div key={p.id} className="relative aspect-square overflow-hidden rounded-md bg-slate-100">
+                      {p.url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.url} alt={`${room} – ${p.phase}`} className="h-full w-full object-cover" />
+                      )}
+                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[10px] text-white">
+                        {p.phase === "before" ? "Vorher" : p.phase === "after" ? "Nachher" : "Problem"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </CardContent>
       </Card>

@@ -51,6 +51,9 @@ export interface Profile {
   /** Genau ein ausgezeichneter Admin (Inhaber) — darf fremde Admin-Profile
    * verwalten und Admin-Accounts löschen. Nur per SQL setzbar. */
   is_superadmin: boolean;
+  /** Bei Reinigungskräften: der Vermieter, der sie angelegt hat und verwaltet
+   * (null = von einem Admin angelegt / org-weit verwaltet). */
+  managed_by: string | null;
   created_at: string;
 }
 

@@ -54,11 +54,21 @@ export function JobDetailClient({
   const [busy, setBusy] = useState(false);
 
   const rooms = useMemo(() => {
+    // Räume kommen primär aus der Checkliste; ohne Checkliste werden sie aus
+    // der Wohnung abgeleitet (Küche, Bad, Raum 1..n), damit Fotos immer einem
+    // konkreten Raum zugeordnet werden. Räume bereits hochgeladener Fotos
+    // bleiben sichtbar, auch wenn sie in keiner Liste stehen.
     const seen: string[] = [];
     for (const r of results) if (!seen.includes(r.room_name)) seen.push(r.room_name);
-    if (seen.length === 0) seen.push("Allgemein");
+    if (seen.length === 0) {
+      seen.push("Küche", "Bad");
+      for (let i = 1; i <= Math.max(1, apartment.room_count); i += 1) {
+        seen.push(`Raum ${i}`);
+      }
+    }
+    for (const p of photos) if (!seen.includes(p.room_name)) seen.push(p.room_name);
     return seen;
-  }, [results]);
+  }, [results, photos, apartment.room_count]);
 
   const isDisabled = status === "completed";
 

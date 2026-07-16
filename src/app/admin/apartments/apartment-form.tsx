@@ -16,9 +16,19 @@ interface Props {
   error?: string;
   landlords: PersonOption[];
   cleaners: PersonOption[];
+  /** Vermieter legen Wohnungen immer für sich selbst an — die
+   * Vermieter-Auswahl sehen nur Admins. */
+  showOwnerSelect?: boolean;
 }
 
-export function ApartmentForm({ action, apartment, error, landlords, cleaners }: Props) {
+export function ApartmentForm({
+  action,
+  apartment,
+  error,
+  landlords,
+  cleaners,
+  showOwnerSelect = true,
+}: Props) {
   return (
     <form action={action} className="flex max-w-lg flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -51,21 +61,23 @@ export function ApartmentForm({ action, apartment, error, landlords, cleaners }:
         <Label htmlFor="description">Beschreibung (optional)</Label>
         <Textarea id="description" name="description" defaultValue={apartment?.description ?? ""} />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="owner_id">Vermieter (optional)</Label>
-        <Select id="owner_id" name="owner_id" defaultValue={apartment?.owner_id ?? ""}>
-          <option value="">Kein Vermieter zugeordnet (nur Admins)</option>
-          {landlords.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.full_name}
-            </option>
-          ))}
-        </Select>
-        <p className="text-xs text-slate-500">
-          Der zugeordnete Vermieter sieht diese Wohnung in seinem Bereich und wird bei
-          abgeschlossenen Reinigungen und Problemen mitbenachrichtigt.
-        </p>
-      </div>
+      {showOwnerSelect && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="owner_id">Vermieter (optional)</Label>
+          <Select id="owner_id" name="owner_id" defaultValue={apartment?.owner_id ?? ""}>
+            <option value="">Kein Vermieter zugeordnet (nur Admins)</option>
+            {landlords.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.full_name}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-slate-500">
+            Der zugeordnete Vermieter sieht diese Wohnung in seinem Bereich und wird bei
+            abgeschlossenen Reinigungen und Problemen mitbenachrichtigt.
+          </p>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="default_cleaner_id">Stamm-Reinigungskraft (optional)</Label>
         <Select id="default_cleaner_id" name="default_cleaner_id" defaultValue={apartment?.default_cleaner_id ?? ""}>
