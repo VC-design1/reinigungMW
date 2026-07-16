@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design-Tokens
+   ---------------------------------------------------------------------------
+   Lesbarkeit: Die Slate-Textstufen sind global eine Stufe dunkler gemappt,
+   damit "gedämpfter" Text (text-slate-400/500) auf weißen Karten und dem
+   hellen Seitenhintergrund WCAG-AA-Kontrast erreicht:
+     slate-400 → #64748b (4.8:1 auf Weiß)   Tertiär/Muted, Platzhalter
+     slate-500 → #475569 (7.6:1)            Sekundärtext
+     slate-600 → #334155 (10.3:1)           Nav-Links, betonter Sekundärtext
+     slate-700 → #1e293b (14.5:1)           Zwischenüberschriften
+   Akzent: Petrol (teal) als Primärfarbe der App — Buttons, aktive Navigation,
+   Fokus-Ringe. Statusfarben (grün/rot/amber) bleiben davon unberührt.
+--------------------------------------------------------------------------- */
+
+@theme {
+  --color-slate-400: #64748b;
+  --color-slate-500: #475569;
+  --color-slate-600: #334155;
+  --color-slate-700: #1e293b;
+
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ruhigere, konsistente Fokus-Darstellung für Tastaturnutzung */
+:focus-visible {
+  outline: 2px solid var(--color-brand-700);
+  outline-offset: 2px;
+}
