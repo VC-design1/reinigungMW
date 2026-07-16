@@ -8,15 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { createTeamMember, setMemberActive } from "./actions";
+import { DeleteMemberButton } from "./delete-member-button";
 import { StarRatingDisplay } from "@/components/star-rating-display";
 import { ROLE_LABELS, type UserRole } from "@/lib/types";
 
 export default async function TeamPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; created?: string; updated?: string }>;
+  searchParams: Promise<{ error?: string; created?: string; updated?: string; deleted?: string }>;
 }) {
-  const { error, created, updated } = await searchParams;
+  const { error, created, updated, deleted } = await searchParams;
   const profile = await requireProfile("admin");
   const supabase = await createClient();
 
@@ -54,6 +55,8 @@ export default async function TeamPage({
       <h1 className="text-xl font-semibold tracking-tight text-slate-900">Team</h1>
 
       {updated && <p className="text-sm text-emerald-600">Profil wurde aktualisiert.</p>}
+      {deleted && <p className="text-sm text-emerald-600">Account wurde gelöscht.</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <Card>
         <CardHeader>
@@ -61,9 +64,16 @@ export default async function TeamPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {(members ?? []).map((member) => {
-            // Admin-Profile gehören ihren Inhabern: fremde Admin-Accounts sind
-            // hier weder bearbeitbar noch deaktivierbar.
-            const manageable = member.id === profile.id || member.role !== "admin";
+            // Admin-Profile gehören ihren Inhabern: fremde Admin-Accounts kann
+            // nur der Superadmin verwalten; das Superadmin-Profil niemand außer
+            // dem Inhaber selbst.
+            const manageable =
+              member.id === profile.id ||
+              (!member.is_superadmin && (member.role !== "admin" || profile.is_superadmin));
+            const deletable =
+              member.id !== profile.id &&
+              !member.is_superadmin &&
+              (member.role !== "admin" || profile.is_superadmin);
             return (
               <div
                 key={member.id}
@@ -79,6 +89,7 @@ export default async function TeamPage({
                   <p className="text-xs text-slate-400">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {member.is_superadmin && <Badge variant="blue">Superadmin</Badge>}
                   <Badge variant={roleBadgeVariant(member.role as UserRole)}>
                     {ROLE_LABELS[member.role as UserRole]}
                   </Badge>
@@ -101,6 +112,9 @@ export default async function TeamPage({
                         {member.active ? "Deaktivieren" : "Aktivieren"}
                       </Button>
                     </form>
+                  )}
+                  {deletable && (
+                    <DeleteMemberButton memberId={member.id} memberName={member.full_name} />
                   )}
                 </div>
               </div>

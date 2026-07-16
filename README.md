@@ -50,6 +50,10 @@ ausgeführt werden:
 - `0003_roles.sql` — Rollenkonzept v2 (Rolle `landlord`, Wohnungs-Zuordnung
   `owner_id`, Stamm-Reinigungskraft `default_cleaner_id`, Auftrag↔Buchung-
   Verknüpfung für die automatische Abreise-Reinigung, verschärfte RLS).
+- `0004_superadmin.sql` — Superadmin-Flag (Inhaber-Account, per E-Mail in der
+  Migration gesetzt) + Account-Löschung: Historien-FKs auf `on delete set null`,
+  damit Accounts gelöscht werden können, ohne Aufträge/Fotos/Meldungen zu
+  verlieren.
 
 Zwei Wege, sie auszuführen:
 
@@ -182,12 +186,17 @@ läuft aber weiterhin über die IndexedDB-Queue, nicht über den Service Worker.
 | **Reinigungskraft** (`cleaner`) | nur Wohnungen mit ihr zugewiesenen Aufträgen | Checklisten/Fotos/Meldungen/Status im eigenen Auftrag |
 
 Schutzregeln für Profile: Ein Admin kann Vermieter- und Reinigungskraft-Profile
-bearbeiten (Name, Telefon, Rolle, aktiv/deaktiviert) — **fremde Admin-Profile
-aber nicht**: Jeder Admin-Account gehört seinem Inhaber und kann nur von ihm
-selbst geändert werden (per Server-Check *und* RLS-Policy erzwungen). Bestehende
-Profile können nicht nachträglich zu Admins hochgestuft werden; neue Admins
-entstehen nur über „Neues Teammitglied anlegen". Die eigene Rolle ist nicht
-änderbar (verhindert, dass sich der letzte Admin selbst aussperrt).
+bearbeiten, deaktivieren und **löschen** — fremde Admin-Profile aber nicht:
+Jeder Admin-Account gehört seinem Inhaber (per Server-Check *und* RLS-Policy
+erzwungen). Ausnahme ist der **Superadmin** (Inhaber-Account, Flag
+`profiles.is_superadmin`, nur per SQL/Migration setzbar — siehe
+`0004_superadmin.sql`): Er darf zusätzlich fremde Admin-Profile verwalten und
+Admin-Accounts löschen. Das Superadmin-Profil selbst ist unlöschbar und nur vom
+Inhaber änderbar. Beim Löschen eines Accounts bleibt die Reinigungshistorie
+vollständig erhalten (Verweise auf die Person werden auf NULL gesetzt).
+Bestehende Profile können nicht nachträglich zu Admins hochgestuft werden; neue
+Admins entstehen nur über „Neues Teammitglied anlegen". Die eigene Rolle ist
+nicht änderbar (verhindert, dass sich der letzte Admin selbst aussperrt).
 
 ## Automatische Abreise-Reinigung
 

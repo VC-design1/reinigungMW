@@ -48,6 +48,9 @@ export interface Profile {
   phone: string | null;
   locale: string;
   active: boolean;
+  /** Genau ein ausgezeichneter Admin (Inhaber) — darf fremde Admin-Profile
+   * verwalten und Admin-Accounts löschen. Nur per SQL setzbar. */
+  is_superadmin: boolean;
   created_at: string;
 }
 
@@ -107,7 +110,7 @@ export interface CleaningRating {
   cleaner_id: string | null;
   rating: number;
   comment: string | null;
-  rated_by: string;
+  rated_by: string | null;
   created_at: string;
 }
 
@@ -140,7 +143,7 @@ export interface CleaningJob {
   status: CleaningJobStatus;
   started_at: string | null;
   completed_at: string | null;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -163,7 +166,7 @@ export interface Photo {
   room_name: string;
   phase: PhotoPhase;
   storage_path: string;
-  uploaded_by: string;
+  uploaded_by: string | null;
   created_at: string;
 }
 
@@ -176,7 +179,7 @@ export interface IssueReport {
   description: string;
   priority: IssuePriority;
   status: IssueStatus;
-  reported_by: string;
+  reported_by: string | null;
   created_at: string;
   resolved_at: string | null;
 }

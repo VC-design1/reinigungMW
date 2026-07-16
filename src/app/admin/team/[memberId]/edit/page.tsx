@@ -30,8 +30,12 @@ export default async function EditTeamMemberPage({
     .single();
   if (!member) notFound();
 
-  // Admin-Profile gehören ihren Inhabern — fremde Admin-Accounts sind tabu.
-  if (member.role === "admin" && member.id !== profile.id) {
+  // Admin-Profile gehören ihren Inhabern — fremde Admin-Accounts darf nur der
+  // Superadmin bearbeiten; das Superadmin-Profil nur der Inhaber selbst.
+  const allowed =
+    member.id === profile.id ||
+    (!member.is_superadmin && (member.role !== "admin" || profile.is_superadmin));
+  if (!allowed) {
     redirect("/admin/team");
   }
 
@@ -63,10 +67,11 @@ export default async function EditTeamMemberPage({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="role">Rolle</Label>
-              {isSelf ? (
+              {isSelf || member.role === "admin" ? (
                 <>
-                  {/* Eigene Rolle ist fix — verhindert, dass sich der letzte
-                      Admin versehentlich selbst die Admin-Rechte entzieht. */}
+                  {/* Eigene Rolle und Admin-Rollen sind fix — verhindert
+                      versehentliche Selbst-Aussperrung bzw. Degradierung von
+                      Admin-Accounts über den Bearbeiten-Weg. */}
                   <Input value={ROLE_LABELS[member.role as UserRole]} disabled />
                   <input type="hidden" name="role" value={member.role} />
                 </>
