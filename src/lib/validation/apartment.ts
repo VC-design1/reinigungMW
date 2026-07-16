@@ -7,6 +7,8 @@ export const apartmentSchema = z.object({
   description: z.string().optional(),
   occupancy_status: z.enum(["free", "occupied"]).default("free"),
   ical_url: z.string().url("Bitte eine gültige URL angeben.").optional().or(z.literal("")),
+  owner_id: z.string().uuid().optional().or(z.literal("")),
+  default_cleaner_id: z.string().uuid().optional().or(z.literal("")),
 });
 
 export type ApartmentInput = z.infer<typeof apartmentSchema>;

@@ -34,7 +34,7 @@ export default async function ApartmentDetailPage({
 }) {
   const { apartmentId } = await params;
   const { icalError, icalSynced, bookingError, bookingCreated } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const [
@@ -66,6 +66,7 @@ export default async function ApartmentDetailPage({
 
   if (!apartment) notFound();
 
+  const isAdmin = profile.role === "admin";
   const assignedIds = new Set((assigned ?? []).map((a) => a.template_id));
 
   function statusVariant(status: CleaningJobStatus) {
@@ -101,22 +102,26 @@ export default async function ApartmentDetailPage({
               PDF-Bericht
             </Button>
           </a>
-          <Link href={`/admin/apartments/${apartment.id}/edit`}>
-            <Button size="sm" variant="outline">
-              Bearbeiten
-            </Button>
-          </Link>
-          <form
-            action={setApartmentStatus.bind(
-              null,
-              apartment.id,
-              apartment.status === "active" ? "archived" : "active"
-            )}
-          >
-            <Button size="sm" variant={apartment.status === "active" ? "destructive" : "outline"}>
-              {apartment.status === "active" ? "Archivieren" : "Aktivieren"}
-            </Button>
-          </form>
+          {isAdmin && (
+            <>
+              <Link href={`/admin/apartments/${apartment.id}/edit`}>
+                <Button size="sm" variant="outline">
+                  Bearbeiten
+                </Button>
+              </Link>
+              <form
+                action={setApartmentStatus.bind(
+                  null,
+                  apartment.id,
+                  apartment.status === "active" ? "archived" : "active"
+                )}
+              >
+                <Button size="sm" variant={apartment.status === "active" ? "destructive" : "outline"}>
+                  {apartment.status === "active" ? "Archivieren" : "Aktivieren"}
+                </Button>
+              </form>
+            </>
+          )}
         </div>
       </div>
 
@@ -133,24 +138,28 @@ export default async function ApartmentDetailPage({
                     {item.name}
                     {item.category && <span className="text-slate-400"> · {item.category}</span>}
                   </span>
-                  <form action={removeInventoryItem.bind(null, apartment.id, item.id)}>
-                    <Button size="sm" variant="ghost" type="submit">
-                      Entfernen
-                    </Button>
-                  </form>
+                  {isAdmin && (
+                    <form action={removeInventoryItem.bind(null, apartment.id, item.id)}>
+                      <Button size="sm" variant="ghost" type="submit">
+                        Entfernen
+                      </Button>
+                    </form>
+                  )}
                 </li>
               ))}
               {(inventory ?? []).length === 0 && (
                 <p className="text-sm text-slate-400">Noch keine Gegenstände erfasst.</p>
               )}
             </ul>
-            <form action={addInventoryItem.bind(null, apartment.id)} className="flex gap-2">
-              <Input name="name" placeholder="Gegenstand" required className="flex-1" />
-              <Input name="category" placeholder="Kategorie" className="w-32" />
-              <Button type="submit" size="sm" variant="outline">
-                Hinzufügen
-              </Button>
-            </form>
+            {isAdmin && (
+              <form action={addInventoryItem.bind(null, apartment.id)} className="flex gap-2">
+                <Input name="name" placeholder="Gegenstand" required className="flex-1" />
+                <Input name="category" placeholder="Kategorie" className="w-32" />
+                <Button type="submit" size="sm" variant="outline">
+                  Hinzufügen
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
 
@@ -161,6 +170,13 @@ export default async function ApartmentDetailPage({
           <CardContent className="flex flex-col gap-2">
             {(templates ?? []).map((tpl) => {
               const isAssigned = assignedIds.has(tpl.id);
+              if (!isAdmin) {
+                return isAssigned ? (
+                  <span key={tpl.id} className="text-sm">
+                    {tpl.name}
+                  </span>
+                ) : null;
+              }
               return (
                 <form
                   key={tpl.id}
@@ -177,9 +193,11 @@ export default async function ApartmentDetailPage({
             {(templates ?? []).length === 0 && (
               <p className="text-sm text-slate-400">
                 Noch keine Vorlagen vorhanden.{" "}
-                <Link href="/admin/templates/new" className="underline">
-                  Vorlage anlegen
-                </Link>
+                {isAdmin && (
+                  <Link href="/admin/templates/new" className="underline">
+                    Vorlage anlegen
+                  </Link>
+                )}
               </p>
             )}
           </CardContent>
@@ -251,6 +269,7 @@ export default async function ApartmentDetailPage({
               </Button>
             </form>
 
+            {isAdmin && (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
               <p className="text-xs font-medium text-slate-500">Automatischer Import (iCal)</p>
               {apartment.ical_url ? (
@@ -270,6 +289,7 @@ export default async function ApartmentDetailPage({
               {icalSynced && <p className="text-sm text-emerald-600">Synchronisierung erfolgreich.</p>}
               {icalError && <p className="text-sm text-red-600">{icalError}</p>}
             </div>
+            )}
           </CardContent>
         </Card>
       </div>

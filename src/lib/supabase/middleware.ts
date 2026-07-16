@@ -59,19 +59,21 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const home = profile.role === "admin" ? "/admin" : "/clean";
+    // Admin und Vermieter teilen sich den /admin-Bereich (Vermieter sieht per
+    // RLS nur eigene Wohnungen; admin-exklusive Seiten schützt requireProfile).
+    const home = profile.role === "cleaner" ? "/clean" : "/admin";
 
     if (path === "/") {
       const url = request.nextUrl.clone();
       url.pathname = home;
       return NextResponse.redirect(url);
     }
-    if (path.startsWith("/admin") && profile.role !== "admin") {
+    if (path.startsWith("/admin") && profile.role === "cleaner") {
       const url = request.nextUrl.clone();
       url.pathname = "/clean";
       return NextResponse.redirect(url);
     }
-    if (path.startsWith("/clean") && profile.role !== "cleaner" && profile.role !== "admin") {
+    if (path.startsWith("/clean") && profile.role === "landlord") {
       const url = request.nextUrl.clone();
       url.pathname = "/admin";
       return NextResponse.redirect(url);

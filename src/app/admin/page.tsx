@@ -21,7 +21,7 @@ function statusVariant(status: CleaningJobStatus) {
 }
 
 export default async function AdminDashboardPage() {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const today = format(new Date(), "yyyy-MM-dd");

@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { jobSchema } from "@/lib/validation/job";
 
 export async function createJob(formData: FormData) {
-  const profile = await requireProfile("admin");
+  // Vermieter dürfen Aufträge nur für eigene Wohnungen anlegen — das erzwingt
+  // die RLS-Insert-Policy (cleaning_jobs_insert_landlord) beim Insert.
+  const profile = await requireProfile(["admin", "landlord"]);
   const raw = Object.fromEntries(formData.entries());
   const parsed = jobSchema.safeParse(raw);
   if (!parsed.success) {
@@ -35,13 +38,17 @@ export async function createJob(formData: FormData) {
   }
 
   if (parsed.data.checklist_template_id) {
-    const { data: templateItems } = await supabase
+    // Snapshot per Service-Client: Vermieter haben keine RLS-Insert-Policy für
+    // Checklisten-Ergebnisse; die Berechtigung ist durch den erfolgreichen
+    // Job-Insert (RLS) bereits nachgewiesen.
+    const admin = createAdminClient();
+    const { data: templateItems } = await admin
       .from("checklist_template_items")
       .select("room_name, label")
       .eq("template_id", parsed.data.checklist_template_id);
 
     if (templateItems && templateItems.length > 0) {
-      await supabase.from("cleaning_job_checklist_results").insert(
+      await admin.from("cleaning_job_checklist_results").insert(
         templateItems.map((item) => ({
           cleaning_job_id: job.id,
           org_id: profile.org_id,
@@ -58,7 +65,9 @@ export async function createJob(formData: FormData) {
 }
 
 export async function cancelJob(jobId: string) {
-  await requireProfile("admin");
+  // Vermieter können nur noch nicht begonnene Aufträge eigener Wohnungen
+  // löschen (RLS-Delete-Policy); Admins alle.
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase.from("cleaning_jobs").delete().eq("id", jobId);
   revalidatePath("/admin/jobs");

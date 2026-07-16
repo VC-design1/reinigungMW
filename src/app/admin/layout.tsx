@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { PushToggle } from "@/components/push-toggle";
 import { BrandMark } from "@/components/brand-mark";
 import { AdminNav } from "./admin-nav";
+import { ROLE_LABELS } from "@/lib/types";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   const { count: unreadCount } = await supabase
     .from("notifications")
@@ -27,7 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <p className="text-sm font-semibold tracking-tight text-slate-900">
                   Reinigungsmanagement
                 </p>
-                <p className="text-xs text-slate-500">Vermieter-Bereich</p>
+                <p className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -39,7 +40,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               <LogoutButton />
             </div>
           </div>
-          <AdminNav />
+          <AdminNav role={profile.role} />
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>

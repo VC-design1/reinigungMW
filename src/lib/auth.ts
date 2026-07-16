@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/types";
+import type { Profile, UserRole } from "@/lib/types";
+
+/** Startseite je Rolle: Admin und Vermieter teilen sich den /admin-Bereich
+ * (der Vermieter sieht dort per RLS nur seine eigenen Wohnungen). */
+export function homeForRole(role: UserRole): string {
+  return role === "cleaner" ? "/clean" : "/admin";
+}
 
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
@@ -19,13 +25,16 @@ export async function getProfile(): Promise<Profile | null> {
   return (data as Profile) ?? null;
 }
 
-export async function requireProfile(role?: "admin" | "cleaner"): Promise<Profile> {
+export async function requireProfile(role?: UserRole | UserRole[]): Promise<Profile> {
   const profile = await getProfile();
   if (!profile || !profile.active) {
     redirect("/login");
   }
-  if (role && profile.role !== role) {
-    redirect(profile.role === "admin" ? "/admin" : "/clean");
+  if (role) {
+    const allowed = Array.isArray(role) ? role : [role];
+    if (!allowed.includes(profile.role)) {
+      redirect(homeForRole(profile.role));
+    }
   }
   return profile;
 }

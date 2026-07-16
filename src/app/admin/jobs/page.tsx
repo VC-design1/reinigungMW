@@ -23,7 +23,7 @@ function statusVariant(status: CleaningJobStatus) {
 }
 
 export default async function JobsPage() {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const { data: jobs } = await supabase

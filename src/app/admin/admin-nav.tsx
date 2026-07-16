@@ -3,24 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/lib/types";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/calendar", label: "Kalender" },
-  { href: "/admin/apartments", label: "Wohnungen" },
-  { href: "/admin/templates", label: "Checklisten" },
-  { href: "/admin/jobs", label: "Aufträge" },
-  { href: "/admin/team", label: "Team" },
-  { href: "/admin/stats", label: "Statistik" },
-  { href: "/admin/insights", label: "Auswertung" },
+const NAV: { href: string; label: string; roles: UserRole[] }[] = [
+  { href: "/admin", label: "Dashboard", roles: ["admin", "landlord"] },
+  { href: "/admin/calendar", label: "Kalender", roles: ["admin", "landlord"] },
+  { href: "/admin/apartments", label: "Wohnungen", roles: ["admin", "landlord"] },
+  { href: "/admin/templates", label: "Checklisten", roles: ["admin"] },
+  { href: "/admin/jobs", label: "Aufträge", roles: ["admin", "landlord"] },
+  { href: "/admin/team", label: "Team", roles: ["admin"] },
+  { href: "/admin/stats", label: "Statistik", roles: ["admin"] },
+  { href: "/admin/insights", label: "Auswertung", roles: ["admin"] },
 ];
 
-export function AdminNav() {
+export function AdminNav({ role }: { role: UserRole }) {
   const pathname = usePathname();
 
   return (
     <nav className="-mb-px flex gap-1 overflow-x-auto">
-      {NAV.map((item) => {
+      {NAV.filter((item) => item.roles.includes(role)).map((item) => {
         const active =
           item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
         return (

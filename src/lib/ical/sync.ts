@@ -1,5 +1,6 @@
 import ical from "node-ical";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ensureCleaningJobForBooking } from "@/lib/bookings/auto-clean";
 
 function toDateString(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -7,15 +8,17 @@ function toDateString(d: Date) {
 
 /**
  * Pulls all events from an apartment's iCal feed (Airbnb/Booking export URL),
- * upserts them as apartment_bookings, and derives today's occupancy_status
- * from whether "now" falls inside any booking range.
+ * upserts them as apartment_bookings, derives today's occupancy_status, and
+ * schedules the automatic departure-day cleaning job for every (future)
+ * booking that doesn't have one yet.
  */
 export async function syncApartmentBookings(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
-  apartment: { id: string; org_id: string; ical_url: string | null }
-): Promise<{ synced: number }> {
-  if (!apartment.ical_url) return { synced: 0 };
+  apartment: { id: string; org_id: string; ical_url: string | null },
+  createdBy: string
+): Promise<{ synced: number; jobsCreated: number }> {
+  if (!apartment.ical_url) return { synced: 0, jobsCreated: 0 };
 
   const events = await ical.async.fromURL(apartment.ical_url);
 
@@ -33,11 +36,18 @@ export async function syncApartmentBookings(
       source: "ical",
     }));
 
+  let jobsCreated = 0;
   if (bookings.length > 0) {
-    const { error } = await supabase
+    const { data: upserted, error } = await supabase
       .from("apartment_bookings")
-      .upsert(bookings, { onConflict: "apartment_id,uid" });
+      .upsert(bookings, { onConflict: "apartment_id,uid" })
+      .select("id, apartment_id, org_id, end_date");
     if (error) throw error;
+
+    for (const booking of upserted ?? []) {
+      const { created } = await ensureCleaningJobForBooking(booking, createdBy);
+      if (created) jobsCreated += 1;
+    }
   }
 
   const today = toDateString(new Date());
@@ -48,5 +58,5 @@ export async function syncApartmentBookings(
     .update({ occupancy_status: occupiedToday ? "occupied" : "free" })
     .eq("id", apartment.id);
 
-  return { synced: bookings.length };
+  return { synced: bookings.length, jobsCreated };
 }

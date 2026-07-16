@@ -27,18 +27,19 @@ export async function POST(request: Request) {
   if (parsed.data.type === "cleaning_completed") {
     const { data: job } = await admin
       .from("cleaning_jobs")
-      .select("id, org_id, apartment_id, apartments(name)")
+      .select("id, org_id, apartment_id, apartments(name, owner_id)")
       .eq("id", parsed.data.jobId)
       .single();
     if (!job) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-    const apartmentName = (job.apartments as unknown as { name: string } | null)?.name ?? "Wohnung";
-    await notifyAdmins(
+    const apartment = job.apartments as unknown as { name: string; owner_id: string | null } | null;
+    await notifyManagers(
       admin,
       job.org_id,
+      apartment?.owner_id ?? null,
       {
         type: "cleaning_completed",
-        title: `Reinigung abgeschlossen: ${apartmentName}`,
+        title: `Reinigung abgeschlossen: ${apartment?.name ?? "Wohnung"}`,
         body: null,
         related_job_id: job.id,
         related_apartment_id: job.apartment_id,
@@ -51,19 +52,20 @@ export async function POST(request: Request) {
   if (parsed.data.type === "issue_reported") {
     const { data: issue } = await admin
       .from("issue_reports")
-      .select("id, cleaning_job_id, apartment_id, org_id, category, priority, apartments(name)")
+      .select("id, cleaning_job_id, apartment_id, org_id, category, priority, apartments(name, owner_id)")
       .eq("id", parsed.data.issueId)
       .single();
     if (!issue) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-    const apartmentName = (issue.apartments as unknown as { name: string } | null)?.name ?? "Wohnung";
+    const apartment = issue.apartments as unknown as { name: string; owner_id: string | null } | null;
     const urgent = issue.priority === "critical";
-    await notifyAdmins(
+    await notifyManagers(
       admin,
       issue.org_id,
+      apartment?.owner_id ?? null,
       {
         type: "issue_reported",
-        title: `${urgent ? "Dringend: " : ""}Problem gemeldet – ${apartmentName}`,
+        title: `${urgent ? "Dringend: " : ""}Problem gemeldet – ${apartment?.name ?? "Wohnung"}`,
         body: null,
         related_job_id: issue.cleaning_job_id,
         related_apartment_id: issue.apartment_id,
@@ -77,9 +79,12 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
-async function notifyAdmins(
+/** Benachrichtigt alle Admins der Organisation sowie — falls die Wohnung
+ * einem Vermieter gehört — zusätzlich diesen Vermieter. */
+async function notifyManagers(
   admin: ReturnType<typeof createAdminClient>,
   orgId: string,
+  ownerId: string | null,
   fields: {
     type: "cleaning_completed" | "issue_reported" | "cleaning_overdue" | "cleaning_reminder";
     title: string;
@@ -96,28 +101,38 @@ async function notifyAdmins(
     .eq("role", "admin")
     .eq("active", true);
 
-  if (!admins || admins.length === 0) return;
+  const recipients = [...(admins ?? [])];
+  if (ownerId && !recipients.some((r) => r.id === ownerId)) {
+    const { data: owner } = await admin
+      .from("profiles")
+      .select("id, email")
+      .eq("id", ownerId)
+      .eq("active", true)
+      .maybeSingle();
+    if (owner) recipients.push(owner);
+  }
+  if (recipients.length === 0) return;
 
   await admin.from("notifications").insert(
-    admins.map((a) => ({
+    recipients.map((r) => ({
       org_id: orgId,
-      user_id: a.id,
+      user_id: r.id,
       ...fields,
     }))
   );
 
   if (!pushImmediately) return;
 
-  const adminIds = admins.map((a) => a.id);
+  const recipientIds = recipients.map((r) => r.id);
   const { data: subs } = await admin
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
-    .in("profile_id", adminIds);
+    .in("profile_id", recipientIds);
 
   await Promise.all([
     sendPushToSubscriptions(subs ?? [], { title: fields.title, body: fields.body ?? undefined, url: "/admin/notifications" }),
-    ...admins.map((a) =>
-      sendEmail(a.email, fields.title, `<p>${fields.title}</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}/admin/notifications">In der App ansehen</a></p>`)
+    ...recipients.map((r) =>
+      sendEmail(r.email, fields.title, `<p>${fields.title}</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}/admin/notifications">In der App ansehen</a></p>`)
     ),
   ]);
 }

@@ -22,7 +22,7 @@ export default async function AdminJobHistoryPage({
   params: Promise<{ apartmentId: string; jobId: string }>;
 }) {
   const { apartmentId, jobId } = await params;
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const { data: job } = await supabase

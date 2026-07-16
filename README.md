@@ -47,11 +47,14 @@ ausgeführt werden:
   Meldungen, Benachrichtigungen, RLS, Storage-Bucket).
 - `0002_phase2.sql` — Phase-2-Ergänzungen (`apartment_bookings` für iCal-Import,
   `push_subscriptions`, `cleaning_ratings`, neuer Notification-Typ `cleaning_reminder`).
+- `0003_roles.sql` — Rollenkonzept v2 (Rolle `landlord`, Wohnungs-Zuordnung
+  `owner_id`, Stamm-Reinigungskraft `default_cleaner_id`, Auftrag↔Buchung-
+  Verknüpfung für die automatische Abreise-Reinigung, verschärfte RLS).
 
 Zwei Wege, sie auszuführen:
 
 - **Dashboard**: Inhalt der jeweiligen Datei in den SQL-Editor im Supabase-Dashboard
-  einfügen und ausführen (0001 zuerst, dann 0002).
+  einfügen und ausführen (0001 zuerst, dann 0002, dann 0003).
 - **Supabase-CLI**: `supabase link` gegen dein Projekt, dann `supabase db push`.
 
 ### 3. Dependencies installieren, Icons generieren, Demo-Daten seeden
@@ -170,11 +173,39 @@ lädt beim zweiten Besuch auch offline) und eine `/offline`-Fallback-Seite für
 noch nicht gecachte Navigationen — die eigentliche Formulardaten-Synchronisierung
 läuft aber weiterhin über die IndexedDB-Queue, nicht über den Service Worker.
 
+## Rollenkonzept
+
+| Rolle | Sichtbarkeit | Rechte |
+| --- | --- | --- |
+| **Admin** | alles in der Organisation | Wohnungen/Vorlagen/Team/Aufträge/Buchungen verwalten, Profile bearbeiten |
+| **Vermieter** (`landlord`) | nur Wohnungen mit eigener Zuordnung (`owner_id`) | Buchungen eintragen/löschen, Reinigungsaufträge anlegen, geplante Aufträge löschen, PDF-Bericht; alles andere read-only |
+| **Reinigungskraft** (`cleaner`) | nur Wohnungen mit ihr zugewiesenen Aufträgen | Checklisten/Fotos/Meldungen/Status im eigenen Auftrag |
+
+Schutzregeln für Profile: Ein Admin kann Vermieter- und Reinigungskraft-Profile
+bearbeiten (Name, Telefon, Rolle, aktiv/deaktiviert) — **fremde Admin-Profile
+aber nicht**: Jeder Admin-Account gehört seinem Inhaber und kann nur von ihm
+selbst geändert werden (per Server-Check *und* RLS-Policy erzwungen). Bestehende
+Profile können nicht nachträglich zu Admins hochgestuft werden; neue Admins
+entstehen nur über „Neues Teammitglied anlegen". Die eigene Rolle ist nicht
+änderbar (verhindert, dass sich der letzte Admin selbst aussperrt).
+
+## Automatische Abreise-Reinigung
+
+Endet ein Vermietungszeitraum, wird automatisch ein Reinigungsauftrag für den
+Abreisetag angelegt — sowohl beim manuellen Eintragen einer Buchung als auch
+beim iCal-Import (`src/lib/bookings/auto-clean.ts`). Ist an der Wohnung eine
+**Stamm-Reinigungskraft** hinterlegt, wird der Auftrag ihr zugewiesen und sie
+per In-App-Benachrichtigung (plus Push/E-Mail, falls konfiguriert) informiert;
+sonst bleibt er unzugewiesen und erscheint beim Admin unter „Aufträge". Pro
+Buchung entsteht höchstens ein Auto-Auftrag (Verknüpfung über
+`cleaning_jobs.booking_id`), auch wenn der iCal-Sync mehrfach läuft.
+
 ## Schadens-Eskalation
 
 Meldungen der Kategorie „Schaden" oder „Reinigung nicht möglich" gelten
 automatisch als **kritisch** und lösen sofort eine Push-/E-Mail-Benachrichtigung
-an alle Admins aus (zusätzlich zur In-App-Benachrichtigung); der Auftragsstatus
+an alle Admins sowie den zugeordneten Vermieter der Wohnung aus (zusätzlich zur
+In-App-Benachrichtigung); der Auftragsstatus
 springt auf „Problem gemeldet". Alle anderen Kategorien gelten als **normal** und
 erscheinen nur in-app, gesammelt im Dashboard unter „Offene Meldungen" — kein
 Push-/E-Mail-Spam für Kleinigkeiten. Priorität kann aktuell nicht manuell von

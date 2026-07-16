@@ -16,7 +16,7 @@ const ICONS: Record<NotificationType, typeof CheckCircle2> = {
 };
 
 export default async function NotificationsPage() {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const { data: notifications } = await supabase

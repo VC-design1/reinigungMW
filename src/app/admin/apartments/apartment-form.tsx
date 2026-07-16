@@ -5,13 +5,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { Apartment } from "@/lib/types";
 
+interface PersonOption {
+  id: string;
+  full_name: string;
+}
+
 interface Props {
   action: (formData: FormData) => void;
   apartment?: Apartment;
   error?: string;
+  landlords: PersonOption[];
+  cleaners: PersonOption[];
 }
 
-export function ApartmentForm({ action, apartment, error }: Props) {
+export function ApartmentForm({ action, apartment, error, landlords, cleaners }: Props) {
   return (
     <form action={action} className="flex max-w-lg flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -43,6 +50,36 @@ export function ApartmentForm({ action, apartment, error }: Props) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="description">Beschreibung (optional)</Label>
         <Textarea id="description" name="description" defaultValue={apartment?.description ?? ""} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="owner_id">Vermieter (optional)</Label>
+        <Select id="owner_id" name="owner_id" defaultValue={apartment?.owner_id ?? ""}>
+          <option value="">Kein Vermieter zugeordnet (nur Admins)</option>
+          {landlords.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.full_name}
+            </option>
+          ))}
+        </Select>
+        <p className="text-xs text-slate-500">
+          Der zugeordnete Vermieter sieht diese Wohnung in seinem Bereich und wird bei
+          abgeschlossenen Reinigungen und Problemen mitbenachrichtigt.
+        </p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="default_cleaner_id">Stamm-Reinigungskraft (optional)</Label>
+        <Select id="default_cleaner_id" name="default_cleaner_id" defaultValue={apartment?.default_cleaner_id ?? ""}>
+          <option value="">Keine — Auto-Aufträge bleiben unzugewiesen</option>
+          {cleaners.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.full_name}
+            </option>
+          ))}
+        </Select>
+        <p className="text-xs text-slate-500">
+          Endet eine Buchung, wird automatisch eine Reinigung am Abreisetag eingeplant und dieser
+          Reinigungskraft zugewiesen.
+        </p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="ical_url">iCal-URL (optional, Airbnb/Booking Export)</Label>

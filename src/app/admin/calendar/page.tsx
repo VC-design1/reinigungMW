@@ -58,7 +58,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ month?: string; day?: string; from?: string; to?: string }>;
 }) {
   const { month: monthParam, day: dayParam, from: fromParam, to: toParam } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const anchor = monthParam ? parseISO(`${monthParam}-01`) : new Date();

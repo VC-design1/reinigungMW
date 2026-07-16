@@ -1,4 +1,10 @@
-export type UserRole = "admin" | "cleaner";
+export type UserRole = "admin" | "landlord" | "cleaner";
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin",
+  landlord: "Vermieter",
+  cleaner: "Reinigungskraft",
+};
 
 export type ApartmentStatus = "active" | "archived";
 export type OccupancyStatus = "free" | "occupied";
@@ -64,6 +70,8 @@ export interface Apartment {
   status: ApartmentStatus;
   occupancy_status: OccupancyStatus;
   ical_url: string | null;
+  owner_id: string | null;
+  default_cleaner_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -124,6 +132,7 @@ export interface CleaningJob {
   org_id: string;
   apartment_id: string;
   assigned_to: string | null;
+  booking_id: string | null;
   checklist_template_id: string | null;
   scheduled_date: string;
   scheduled_start: string | null;

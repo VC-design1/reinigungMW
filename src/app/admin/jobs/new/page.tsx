@@ -12,7 +12,7 @@ export default async function NewJobPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
 
   const [{ data: apartments }, { data: cleaners }, { data: templates }] = await Promise.all([

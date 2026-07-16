@@ -6,13 +6,19 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { apartmentSchema, bookingSchema, inventoryItemSchema } from "@/lib/validation/apartment";
 import { syncApartmentBookings } from "@/lib/ical/sync";
+import { ensureCleaningJobForBooking } from "@/lib/bookings/auto-clean";
 
 function formToObject(formData: FormData) {
   return Object.fromEntries(formData.entries());
 }
 
 function normalizeApartmentInput(data: ReturnType<typeof apartmentSchema.parse>) {
-  return { ...data, ical_url: data.ical_url || null };
+  return {
+    ...data,
+    ical_url: data.ical_url || null,
+    owner_id: data.owner_id || null,
+    default_cleaner_id: data.default_cleaner_id || null,
+  };
 }
 
 export async function createApartment(formData: FormData) {
@@ -106,7 +112,9 @@ async function refreshOccupancy(
 }
 
 export async function addBooking(apartmentId: string, formData: FormData) {
-  const profile = await requireProfile("admin");
+  // Vermieter dürfen Buchungen nur für eigene Wohnungen anlegen — das
+  // erzwingt die RLS-Policy (apartment_bookings_write_landlord) beim Insert.
+  const profile = await requireProfile(["admin", "landlord"]);
   const parsed = bookingSchema.safeParse(formToObject(formData));
   if (!parsed.success) {
     redirect(
@@ -115,19 +123,26 @@ export async function addBooking(apartmentId: string, formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("apartment_bookings").insert({
-    apartment_id: apartmentId,
-    org_id: profile.org_id,
-    uid: `manual-${crypto.randomUUID()}`,
-    start_date: parsed.data.start_date,
-    end_date: parsed.data.end_date,
-    summary: parsed.data.summary || null,
-    source: "manual",
-  });
-  if (error) {
-    redirect(`/admin/apartments/${apartmentId}?bookingError=${encodeURIComponent(error.message)}`);
+  const { data: booking, error } = await supabase
+    .from("apartment_bookings")
+    .insert({
+      apartment_id: apartmentId,
+      org_id: profile.org_id,
+      uid: `manual-${crypto.randomUUID()}`,
+      start_date: parsed.data.start_date,
+      end_date: parsed.data.end_date,
+      summary: parsed.data.summary || null,
+      source: "manual",
+    })
+    .select()
+    .single();
+  if (error || !booking) {
+    redirect(
+      `/admin/apartments/${apartmentId}?bookingError=${encodeURIComponent(error?.message ?? "Fehler")}`
+    );
   }
 
+  await ensureCleaningJobForBooking(booking, profile.id);
   await refreshOccupancy(supabase, apartmentId);
   revalidatePath(`/admin/apartments/${apartmentId}`);
   revalidatePath("/admin/calendar");
@@ -136,7 +151,7 @@ export async function addBooking(apartmentId: string, formData: FormData) {
 }
 
 export async function deleteBooking(apartmentId: string, bookingId: string) {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase.from("apartment_bookings").delete().eq("id", bookingId);
   await refreshOccupancy(supabase, apartmentId);
@@ -146,7 +161,7 @@ export async function deleteBooking(apartmentId: string, bookingId: string) {
 }
 
 export async function syncApartmentIcal(apartmentId: string) {
-  await requireProfile("admin");
+  const profile = await requireProfile("admin");
   const supabase = await createClient();
   const { data: apartment } = await supabase
     .from("apartments")
@@ -159,7 +174,7 @@ export async function syncApartmentIcal(apartmentId: string) {
   }
 
   try {
-    await syncApartmentBookings(supabase, apartment);
+    await syncApartmentBookings(supabase, apartment, profile.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Synchronisierung fehlgeschlagen.";
     redirect(`/admin/apartments/${apartmentId}?icalError=${encodeURIComponent(message)}`);

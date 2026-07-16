@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 
 export async function markNotificationRead(id: string) {
-  await requireProfile("admin");
+  await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
   revalidatePath("/admin/notifications");
@@ -13,7 +13,7 @@ export async function markNotificationRead(id: string) {
 }
 
 export async function markAllNotificationsRead() {
-  const profile = await requireProfile("admin");
+  const profile = await requireProfile(["admin", "landlord"]);
   const supabase = await createClient();
   await supabase
     .from("notifications")
