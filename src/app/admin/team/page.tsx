@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCleaner, setMemberActive } from "./actions";
+import { Select } from "@/components/ui/select";
+import { createTeamMember, setMemberActive } from "./actions";
 import { StarRatingDisplay } from "@/components/star-rating-display";
 
 export default async function TeamPage({
@@ -80,10 +81,21 @@ export default async function TeamPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Neue Reinigungskraft anlegen</CardTitle>
+          <CardTitle>Neues Teammitglied anlegen</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createCleaner} className="flex max-w-md flex-col gap-4">
+          <form action={createTeamMember} className="flex max-w-md flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="role">Rolle</Label>
+              <Select id="role" name="role" defaultValue="cleaner" required>
+                <option value="cleaner">Reinigungskraft</option>
+                <option value="admin">Vermieter/Admin</option>
+              </Select>
+              <p className="text-xs text-slate-500">
+                Admins sehen den Vermieter-Bereich und können Wohnungen, Aufträge und das Team
+                verwalten. Reinigungskräfte sehen nur ihre eigenen Aufträge.
+              </p>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="full_name">Name</Label>
               <Input id="full_name" name="full_name" required />
@@ -99,8 +111,8 @@ export default async function TeamPage({
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Initial-Passwort</Label>
               <Input id="password" name="password" type="text" minLength={8} required />
-              <p className="text-xs text-slate-400">
-                Bitte direkt an die Reinigungskraft weitergeben; sie kann es nach dem ersten Login ändern.
+              <p className="text-xs text-slate-500">
+                Bitte direkt an die Person weitergeben; sie kann es nach dem ersten Login ändern.
               </p>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}

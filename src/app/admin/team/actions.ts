@@ -5,11 +5,11 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCleanerSchema } from "@/lib/validation/team";
+import { createTeamMemberSchema } from "@/lib/validation/team";
 
-export async function createCleaner(formData: FormData) {
+export async function createTeamMember(formData: FormData) {
   const profile = await requireProfile("admin");
-  const parsed = createCleanerSchema.safeParse(Object.fromEntries(formData.entries()));
+  const parsed = createTeamMemberSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     redirect(`/admin/team?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
   }
@@ -21,7 +21,7 @@ export async function createCleaner(formData: FormData) {
     email_confirm: true,
     user_metadata: {
       org_id: profile.org_id,
-      role: "cleaner",
+      role: parsed.data.role,
       full_name: parsed.data.full_name,
       phone: parsed.data.phone,
     },
